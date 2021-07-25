@@ -62,3 +62,7 @@ func test02(wg *sync.WaitGroup) {
 	fmt.Println("test02")
 	defer wg.Done()
 }
+
+func test06() {
+
+}
