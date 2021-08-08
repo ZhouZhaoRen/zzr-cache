@@ -1,10 +1,12 @@
 package cache
 
 import (
-	"fmt"
 	"testing"
+	"time"
 )
 
-func TestCache_Add(t *testing.T) {
-	fmt.Println("helloworld")
+func TestCacheAdd(t *testing.T) {
+	c:=New(time.Minute*5,time.Minute*10)
+	c.Set("k","v",DefaultExpiration)
+	c.Get("k")
 }
