@@ -135,7 +135,7 @@ func (c *cache) delete(k string) (interface{}, bool) {
 }
 
 // OnEvited 用户自定义驱逐函数
-func (c *cache) OnEvited(f func(k string, v interface{})) {
+func (c *cache) OnEvicted(f func(k string, v interface{})) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 	c.onEvicted = f
@@ -291,7 +291,7 @@ func (j *janitor) Run(c *cache) {
 	}
 }
 
-func stopInterval(c *cache) {
+func stopInterval(c *Cache) {
 	c.janitor.stop <- true
 }
 
