@@ -273,6 +273,41 @@ func (c *cache) Flush() {
 	c.items = map[string]Item{}
 }
 
+// 对元素做加操作
+func (c *cache) Increment(k string, n int64) error {
+	c.rw.Lock()
+	defer c.rw.Unlock()
+	value, found := c.items[k]
+	if !found {
+		fmt.Println("元素不存在，key==", k)
+		return fmt.Errorf("元素不存在，key==", k)
+	}
+	switch value.Object.(type) {
+	case int:
+		value.Object = value.Object.(int) + int(n)
+	case int8:
+		value.Object = value.Object.(int8) + int8(n)
+	case int16:
+		value.Object = value.Object.(int16) + int16(n)
+	case int32:
+		value.Object = value.Object.(int32) + int32(n)
+	case int64:
+		value.Object = value.Object.(int64) + n
+	case float32:
+		value.Object = value.Object.(float32) + float32(n)
+	case float64:
+		value.Object = value.Object.(float64) + float64(n)
+	case uint:
+		value.Object = value.Object.(uint) + uint(n)
+	case uint8:
+		value.Object = value.Object.(uint8) + uint8(n)
+	default:
+		return fmt.Errorf("输入为错误类型：%T", value.Object)
+	}
+	c.items[k] = value
+	return nil
+}
+
 type janitor struct {
 	Interval time.Duration
 	stop     chan bool
