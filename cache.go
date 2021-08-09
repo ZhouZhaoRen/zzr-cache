@@ -191,13 +191,13 @@ func (c *cache) SaveData(path ...string) error {
 				return err
 			}
 		}
-		nowFile, nowFileErr = os.OpenFile(fmt.Sprintf("%s\\%s.log", path[0], "nowData"), os.O_CREATE|os.O_WRONLY, 0600)
-		file, err = os.OpenFile(fmt.Sprintf("%s\\%s.log", path[0], "allData"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		nowFile, nowFileErr = os.OpenFile(fmt.Sprintf("%s\\%s.log", path[0], "nowData"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600) // 覆盖
+		file, err = os.OpenFile(fmt.Sprintf("%s\\%s.log", path[0], "allData"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)          // 追加
 	} else {
-		nowFile, nowFileErr = os.OpenFile(fmt.Sprintf("%s.log", "nowData"), os.O_CREATE|os.O_WRONLY, 0600)
+		nowFile, nowFileErr = os.OpenFile(fmt.Sprintf("%s.log", "nowData"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		file, err = os.OpenFile(fmt.Sprintf("%s.log", "allData"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	}
-	// 先判断文件夹是否存
+
 	if nowFileErr != nil {
 		fmt.Printf("os.OpenFile callee failed:%+v", err)
 		return err
@@ -206,6 +206,8 @@ func (c *cache) SaveData(path ...string) error {
 		fmt.Printf("os.OpenFile callee failed:%+v", err)
 		return err
 	}
+	defer nowFile.Close()
+	defer file.Close()
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	// 对数据编码
@@ -282,7 +284,7 @@ func (j *janitor) Run(c *cache) {
 		select {
 		case <-ticker.C:
 			// 定时删除过期数据
-			_=c.SaveData()
+			_ = c.SaveData()
 			c.DeleteExpired()
 		case <-j.stop:
 			ticker.Stop()
@@ -292,6 +294,8 @@ func (j *janitor) Run(c *cache) {
 }
 
 func stopInterval(c *Cache) {
+	_ = c.SaveData()
+	fmt.Println("开始关闭")
 	c.janitor.stop <- true
 }
 
@@ -304,7 +308,7 @@ func RunJanitor(c *cache, ci time.Duration) {
 	go j.Run(c)
 }
 
-//
+// defaultTime 元素的默认时间，如果传进来是0，自动转成这个
 func New(defaultTime, cleanUpTime time.Duration) *Cache {
 	item := make(map[string]Item)
 	return newCacheWithJanitor(defaultTime, cleanUpTime, item)
