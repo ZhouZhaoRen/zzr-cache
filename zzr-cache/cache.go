@@ -13,7 +13,7 @@ type cache struct {
 	defaultExpiration time.Duration   // 过期时间
 	items             map[string]Item // 存储缓存的容器
 	rw                sync.RWMutex    // 读写锁
-
+	onEvicted         func(string, interface{})
 }
 
 // Set 往缓存中插入元素
@@ -103,4 +103,63 @@ func (c *cache) GetWithExpiration(k string) (interface{}, time.Time, bool) {
 	// 永久
 	return value.Object, time.Time{}, true
 
+}
+
+// Delete 删除一个元素，若定义了驱逐函数，还会触发驱逐函数
+func (c *cache) Delete(k string) {
+	c.rw.Lock()
+	defer c.rw.Unlock()
+	value, onEvited := c.delete(k)
+	// 如果定义了驱逐函数，触发驱逐函数
+	if onEvited {
+		c.onEvicted(k, value)
+	}
+}
+
+// delete 根据是否定义了驱逐函数进行返回
+func (c *cache) delete(k string) (interface{}, bool) {
+	// 没有定义驱逐函数
+	if c.onEvicted != nil {
+		if v, found := c.items[k]; found {
+			delete(c.items, k)
+			return v.Object, false
+		}
+	}
+	delete(c.items, k)
+	return nil, false
+}
+
+// OnEvited 用户自定义驱逐函数
+func (c *cache) OnEvited(f func(k string, v interface{})) {
+	c.rw.Lock()
+	defer c.rw.Unlock()
+	c.onEvicted = f
+}
+
+// keyAndValue 存储key和value的结构体
+type keyAndValue struct {
+	key   string
+	value interface{}
+}
+
+// DeleteExpired 定期删除过期的元素
+func (c *cache) DeleteExpired() {
+	c.rw.Lock()
+	defer c.rw.Unlock()
+	var expiredItems []keyAndValue
+	for key, value := range c.items {
+		if value.Expiration > 0 && time.Now().UnixNano() > value.Expiration {
+			_, evicted := c.delete(key)
+			if evicted {
+				expiredItems = append(expiredItems, keyAndValue{
+					key:   key,
+					value: value,
+				})
+			}
+		}
+	}
+	//
+	for _, v := range expiredItems {
+		c.onEvicted(v.key, v.value)
+	}
 }
